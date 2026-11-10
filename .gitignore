@@ -1,68 +1,55 @@
-# Prerequisites
-*.d
+# ========================================================
+# Visual Studio - Fisiere interne si cache (ESENTIAL)
+# ========================================================
+.vs/
+FileContentIndex/
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
+# ========================================================
+# Fisiere de configurare utilizator
+# ========================================================
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ========================================================
+# Baze de date IntelliSense
+# ========================================================
+*.db
+*.opendb
+*.VC.opendb
+
+# ========================================================
+# Directoare de build generate de compilator
+# ========================================================
+x64/
+x86/
+[Dd]ebug/
+[Rr]elease/
+
+# Foldere intermediare generate in interiorul proiectului
+Biliard/x64/
+Biliard/Debug/
+Biliard/Release/
+
+# Fisiere binare intermediare si temporare de build
 *.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Linker files
 *.ilk
-
-# Debugger Files
 *.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-*.so.*
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# Build directories
-build/
-Build/
-build-*/
-
-# CMake generated files
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
-install_manifest.txt
-compile_commands.json
-
-# Temporary files
-*.tmp
+*.tlog
+*.idb
+*.lastbuildstate
 *.log
-*.bak
-*.swp
+*.tmp
 
-# vcpkg
-vcpkg_installed/
+# Executabile de iesire
+*.exe
 
-# debug information files
-*.dwo
+# Fisiere arhiva
+*.zip
 
-# test output & cache
-Testing/
-.cache/
+# ========================================================
+# Pastram bibliotecile externe necesare proiectului (lib/)
+# ========================================================
+!lib/**/*.lib
+!lib/**/*.dll
