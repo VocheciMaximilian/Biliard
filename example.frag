@@ -34,8 +34,10 @@ void main(void)
             out_Color = vec4(1.0f, 1.0f, 1.0f, 0.6f);
             break;
         case 6:
-            // Linie de tintire
             out_Color = vec4(0.2f, 0.2f, 0.22f, 1.0f);
+            break;
+        case 7:
+            out_Color = vec4(0.88f, 0.15f, 0.15f, 1.0f);
             break;
         default:
             out_Color = ex_Color;

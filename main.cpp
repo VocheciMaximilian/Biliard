@@ -48,6 +48,11 @@ const float BALL_RADIUS = 12.0f;
 float ballVx = 0.0f;
 float ballVy = 0.0f;
 
+float redBallX = 120.0f;
+float redBallY = 0.0f;
+float redBallVx = 0.0f;
+float redBallVy = 0.0f;
+
 const float FRICTION = 0.98f;
 const float CUE_LENGTH = 220.0f;
 const float CUE_WIDTH = 4.0f;
@@ -189,6 +194,15 @@ void RenderFunction(void)
     glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, glm::value_ptr(myMatrix));
     glDrawArrays(GL_TRIANGLE_FAN, 0, CIRCLE_SEGMENTS + 2);
 
+    glUniform1i(codColLocation, 7);
+
+    glm::mat4 translRed = glm::translate(glm::mat4(1.0f), glm::vec3(redBallX, redBallY, 0.0f));
+    glm::mat4 scRed = glm::scale(glm::mat4(1.0f), glm::vec3(BALL_RADIUS, BALL_RADIUS, 1.0f));
+    modelMatrix = translRed * scRed;
+    myMatrix = projMatrix * modelMatrix;
+    glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, glm::value_ptr(myMatrix));
+    glDrawArrays(GL_TRIANGLE_FAN, 0, CIRCLE_SEGMENTS + 2);
+
     glBindVertexArray(0);
 
 	glBindVertexArray(vaoRect);
@@ -262,6 +276,13 @@ void ProcessNormalKeys(unsigned char key, int x, int y)
     {
         cueBallX = -180.0f;
         cueBallY = 0.0f;
+        ballVx = 0.0f;
+        ballVy = 0.0f;
+        redBallX = 120.0f;
+        redBallY = 0.0f;
+        redBallVx = 0.0f;
+        redBallVy = 0.0f;
+        isAiming = true;
         glutPostRedisplay();
     }
 }
@@ -343,8 +364,9 @@ void processActiveMotion(int x, int y)
     }
 }
 
-void updatePhysics(int value) {
-        if (!isAiming)
+void updatePhysics(int value)
+{
+    if (!isAiming)
     {
         cueBallX += ballVx;
         cueBallY += ballVy;
@@ -352,34 +374,93 @@ void updatePhysics(int value) {
         ballVy *= FRICTION;
         if (fabs(ballVx) < 0.01f) ballVx = 0.0f;
         if (fabs(ballVy) < 0.01f) ballVy = 0.0f;
-        if (ballVx == 0.0f && ballVy == 0.0f)
+
+        redBallX += redBallVx;
+        redBallY += redBallVy;
+        redBallVx *= FRICTION;
+        redBallVy *= FRICTION;
+        if (fabs(redBallVx) < 0.01f) redBallVx = 0.0f;
+        if (fabs(redBallVy) < 0.01f) redBallVy = 0.0f;
+
+        if (ballVx == 0.0f && ballVy == 0.0f && redBallVx == 0.0f && redBallVy == 0.0f)
         {
             isAiming = true;
         }
+
         float halfW = (TABLE_WIDTH / 2.0f) - BALL_RADIUS;
         float halfH = (TABLE_HEIGHT / 2.0f) - BALL_RADIUS;
+
         if (cueBallX < -halfW) { cueBallX = -halfW; ballVx = -ballVx; }
         if (cueBallX > halfW) { cueBallX = halfW; ballVx = -ballVx; }
         if (cueBallY < -halfH) { cueBallY = -halfH; ballVy = -ballVy; }
         if (cueBallY > halfH) { cueBallY = halfH; ballVy = -ballVy; }
+
+        if (redBallX < -halfW) { redBallX = -halfW; redBallVx = -redBallVx; }
+        if (redBallX > halfW) { redBallX = halfW; redBallVx = -redBallVx; }
+        if (redBallY < -halfH) { redBallY = -halfH; redBallVy = -redBallVy; }
+        if (redBallY > halfH) { redBallY = halfH; redBallVy = -redBallVy; }
+
+        float deltaX = redBallX - cueBallX;
+        float deltaY = redBallY - cueBallY;
+        float distSq = deltaX * deltaX + deltaY * deltaY;
+        float minDist = 2.0f * BALL_RADIUS;
+
+        if (distSq < minDist * minDist && distSq > 0.0001f)
+        {
+            float dist = sqrtf(distSq);
+            float nx = deltaX / dist;
+            float ny = deltaY / dist;
+
+            float overlap = 0.5f * (minDist - dist);
+            cueBallX -= nx * overlap;
+            cueBallY -= ny * overlap;
+            redBallX += nx * overlap;
+            redBallY += ny * overlap;
+
+            float relVx = ballVx - redBallVx;
+            float relVy = ballVy - redBallVy;
+            float impulse = relVx * nx + relVy * ny;
+
+            if (impulse > 0.0f)
+            {
+                ballVx -= impulse * nx;
+                ballVy -= impulse * ny;
+                redBallVx += impulse * nx;
+                redBallVy += impulse * ny;
+            }
+        }
+
         for (int i = 0; i < 6; i++)
         {
-            float dx = cueBallX - pockets[i].x;
-            float dy = cueBallY - pockets[i].y;
-            float distanceSq = dx * dx + dy * dy;
-            if (distanceSq < POCKET_RADIUS * POCKET_RADIUS)
+            float dx1 = cueBallX - pockets[i].x;
+            float dy1 = cueBallY - pockets[i].y;
+            if (dx1 * dx1 + dy1 * dy1 < POCKET_RADIUS * POCKET_RADIUS)
             {
                 cueBallX = -180.0f;
                 cueBallY = 0.0f;
                 ballVx = 0.0f;
                 ballVy = 0.0f;
-                isAiming = true;
                 break;
             }
         }
+
+        for (int i = 0; i < 6; i++)
+        {
+            float dx2 = redBallX - pockets[i].x;
+            float dy2 = redBallY - pockets[i].y;
+            if (dx2 * dx2 + dy2 * dy2 < POCKET_RADIUS * POCKET_RADIUS)
+            {
+                redBallX = 120.0f;
+                redBallY = 0.0f;
+                redBallVx = 0.0f;
+                redBallVy = 0.0f;
+                break;
+            }
+        }
+
         glutPostRedisplay();
-		}
-        glutTimerFunc(16, updatePhysics, 0);
+    }
+    glutTimerFunc(16, updatePhysics, 0);
 }
 
 int main(int argc, char* argv[])
@@ -388,7 +469,7 @@ int main(int argc, char* argv[])
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowPosition(100, 100);
     glutInitWindowSize(winWidth, winHeight);
-    glutCreateWindow("Proiect Biliard 2D - Demo Masa si Bila Alba");
+    glutCreateWindow("Proiect Biliard 2D - Demo");
 
     glewInit();
 
