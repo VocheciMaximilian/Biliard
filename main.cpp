@@ -31,10 +31,31 @@ const float TABLE_WIDTH = 760.0f;
 const float TABLE_HEIGHT = 380.0f;
 const float BORDER_SIZE = 35.0f;
 const float POCKET_RADIUS = 20.0f;
+const float SLIDER_X = 0.0f;
+const float SLIDER_Y = -250.0f;
+const float SLIDER_WIDTH = 200.0f;
+const float SLIDER_HEIGHT = 20.0f;
+const float MIN_POWER = 1.0f;
+const float MAX_POWER = 35.0f;
+
+float powerPercent = 0.5f;
+bool isDraggingSlider = false;
 
 float cueBallX = -180.0f;
 float cueBallY = 0.0f;
 const float BALL_RADIUS = 12.0f;
+
+float ballVx = 0.0f;
+float ballVy = 0.0f;
+
+const float FRICTION = 0.98f;
+const float CUE_LENGTH = 220.0f;
+const float CUE_WIDTH = 4.0f;
+
+float cueAngle = 0.0f;
+float mouseWorldX = 0.0f;
+float mouseWorldY = 0.0f;
+bool isAiming = true;
 
 struct Pocket {
     float x, y;
@@ -170,33 +191,61 @@ void RenderFunction(void)
 
     glBindVertexArray(0);
 
+	glBindVertexArray(vaoRect);
+
+	glUniform1d(codColLocation, 5);
+	glm::mat4 tSliderBg = glm::translate(glm::mat4(1.0f), glm::vec3(SLIDER_X, SLIDER_Y, 0.0f));
+	glm::mat4 sSliderBg = glm::scale(glm::mat4(1.0f), glm::vec3(SLIDER_WIDTH, SLIDER_HEIGHT, 1.0f));
+	myMatrix = projMatrix * tSliderBg * sSliderBg;
+	glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, glm::value_ptr(myMatrix));
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	float currentFillWidth = SLIDER_WIDTH * powerPercent;
+    if(currentFillWidth > 0.0f)
+    {
+        glUniform1i(codColLocation, 6);
+        glm::mat4 tSliderFill = glm::translate(glm::mat4(1.0f), glm::vec3(SLIDER_X - SLIDER_WIDTH / 2.0f + currentFillWidth / 2.0f, SLIDER_Y, 0.0f));
+        glm::mat4 sSliderFill = glm::scale(glm::mat4(1.0f), glm::vec3(currentFillWidth, SLIDER_HEIGHT, 1.0f));
+        myMatrix = projMatrix * tSliderFill * sSliderFill;
+        glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, glm::value_ptr(myMatrix));
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+	}
+
+
+    if (isAiming)
+    {
+        glBindVertexArray(vaoRect);
+        glUniform1i(codColLocation, 1);
+        glm::mat4 translBall = glm::translate(glm::mat4(1.0f), glm::vec3(cueBallX, cueBallY, 0.0f));
+        glm::mat4 rotCue = glm::rotate(glm::mat4(1.0f), cueAngle, glm::vec3(0.0f, 0.0f, 1.0f));
+        float cueOffset = BALL_RADIUS + (CUE_LENGTH / 2.0f) + 6.0f + (powerPercent * 20.0f);
+        glm::mat4 tOffset = glm::translate(glm::mat4(1.0f), glm::vec3(-cueOffset, 0.0f, 0.0f));
+        glm::mat4 scCue = glm::scale(glm::mat4(1.0f), glm::vec3(CUE_LENGTH, CUE_WIDTH, 1.0f));
+        modelMatrix = translBall * rotCue * tOffset * scCue;
+        myMatrix = projMatrix * modelMatrix;
+        glUniformMatrix4fv(myMatrixLocation, 1, GL_FALSE, glm::value_ptr(myMatrix));
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
+    }
+
     glutSwapBuffers();
     glFlush();
 }
 
 void ProcessSpecialKeys(int key, int x, int y)
 {
-    float speed = 8.0f;
-    float halfW = (TABLE_WIDTH / 2.0f) - BALL_RADIUS;
-    float halfH = (TABLE_HEIGHT / 2.0f) - BALL_RADIUS;
+    float step = 0.05f;
 
     switch (key)
     {
     case GLUT_KEY_LEFT:
-        cueBallX -= speed;
-        if (cueBallX < -halfW) cueBallX = -halfW;
+    case GLUT_KEY_DOWN:
+        powerPercent -= step;
+        if (powerPercent < 0.05f) powerPercent = 0.05f;
         break;
     case GLUT_KEY_RIGHT:
-        cueBallX += speed;
-        if (cueBallX > halfW) cueBallX = halfW;
-        break;
     case GLUT_KEY_UP:
-        cueBallY += speed;
-        if (cueBallY > halfH) cueBallY = halfH;
-        break;
-    case GLUT_KEY_DOWN:
-        cueBallY -= speed;
-        if (cueBallY < -halfH) cueBallY = -halfH;
+        powerPercent += step;
+        if (powerPercent > 1.0f) powerPercent = 1.0f;
         break;
     }
 
@@ -228,6 +277,111 @@ void Cleanup(void)
     glDeleteProgram(ProgramId);
 }
 
+void processMouseMotion(int x, int y)
+{
+    mouseWorldX = xMin + (xMax - xMin) * ((float)x / (float)winWidth);
+    mouseWorldY = yMax - (yMax - yMin) * ((float)y / (float)winHeight);
+    float dx = mouseWorldX - cueBallX;
+    float dy = mouseWorldY - cueBallY;
+    cueAngle = atan2f(dy, dx);
+    glutPostRedisplay();
+}
+bool isMouseOverSlider(float mx, float my)
+{
+    float left = SLIDER_X - SLIDER_WIDTH / 2.0f;
+    float right = SLIDER_X + SLIDER_WIDTH / 2.0f;
+    float bottom = SLIDER_Y - SLIDER_HEIGHT / 2.0f - 10.0f;
+    float top = SLIDER_Y + SLIDER_HEIGHT / 2.0f + 10.0f;
+
+    return (mx >= left && mx <= right && my >= bottom && my <= top);
+}
+void processMouseClick(int button, int state, int x, int y)
+{
+    if (button == GLUT_LEFT_BUTTON)
+    {
+        if (state == GLUT_DOWN)
+        {
+            if (isMouseOverSlider(mouseWorldX, mouseWorldY))
+            {
+                isDraggingSlider = true;
+
+                float leftEdge = SLIDER_X - SLIDER_WIDTH / 2.0f;
+                powerPercent = (mouseWorldX - leftEdge) / SLIDER_WIDTH;
+                if (powerPercent < 0.0f) powerPercent = 0.0f;
+                if (powerPercent > 1.0f) powerPercent = 1.0f;
+
+                glutPostRedisplay();
+            }
+            else if (isAiming)
+            {
+                float actualPower = MIN_POWER + powerPercent * (MAX_POWER - MIN_POWER);
+
+                ballVx = cosf(cueAngle) * actualPower;
+                ballVy = sinf(cueAngle) * actualPower;
+                isAiming = false;
+            }
+        }
+        else if (state == GLUT_UP)
+        {
+            isDraggingSlider = false;
+        }
+    }
+}
+void processActiveMotion(int x, int y)
+{
+    mouseWorldX = xMin + (xMax - xMin) * ((float)x / (float)winWidth);
+    mouseWorldY = yMax - (yMax - yMin) * ((float)y / (float)winHeight);
+
+    if (isDraggingSlider)
+    {
+        float leftEdge = SLIDER_X - SLIDER_WIDTH / 2.0f;
+        powerPercent = (mouseWorldX - leftEdge) / SLIDER_WIDTH;
+        if (powerPercent < 0.05f) powerPercent = 0.05f;
+        if (powerPercent > 1.0f) powerPercent = 1.0f;
+
+        glutPostRedisplay();
+    }
+}
+
+void updatePhysics(int value) {
+        if (!isAiming)
+    {
+        cueBallX += ballVx;
+        cueBallY += ballVy;
+        ballVx *= FRICTION;
+        ballVy *= FRICTION;
+        if (fabs(ballVx) < 0.01f) ballVx = 0.0f;
+        if (fabs(ballVy) < 0.01f) ballVy = 0.0f;
+        if (ballVx == 0.0f && ballVy == 0.0f)
+        {
+            isAiming = true;
+        }
+        float halfW = (TABLE_WIDTH / 2.0f) - BALL_RADIUS;
+        float halfH = (TABLE_HEIGHT / 2.0f) - BALL_RADIUS;
+        if (cueBallX < -halfW) { cueBallX = -halfW; ballVx = -ballVx; }
+        if (cueBallX > halfW) { cueBallX = halfW; ballVx = -ballVx; }
+        if (cueBallY < -halfH) { cueBallY = -halfH; ballVy = -ballVy; }
+        if (cueBallY > halfH) { cueBallY = halfH; ballVy = -ballVy; }
+        for (int i = 0; i < 6; i++)
+        {
+            float dx = cueBallX - pockets[i].x;
+            float dy = cueBallY - pockets[i].y;
+            float distanceSq = dx * dx + dy * dy;
+            if (distanceSq < POCKET_RADIUS * POCKET_RADIUS)
+            {
+                cueBallX = -180.0f;
+                cueBallY = 0.0f;
+                ballVx = 0.0f;
+                ballVy = 0.0f;
+                isAiming = true;
+                break;
+            }
+        }
+        glutPostRedisplay();
+		}
+        glutTimerFunc(16, updatePhysics, 0);
+}
+
 int main(int argc, char* argv[])
 {
     glutInit(&argc, argv);
@@ -242,7 +396,12 @@ int main(int argc, char* argv[])
 
     glutDisplayFunc(RenderFunction);
     glutSpecialFunc(ProcessSpecialKeys);
-    glutKeyboardFunc(ProcessNormalKeys);
+    //glutKeyboardFunc(ProcessNormalKeys);
+	glutMouseFunc(processMouseClick);
+	glutPassiveMotionFunc(processMouseMotion);
+	glutMotionFunc(processActiveMotion);
+    //glutIdleFunc(updatePhysics);
+    glutTimerFunc(16, updatePhysics, 0);
     glutCloseFunc(Cleanup);
 
     glutMainLoop();
