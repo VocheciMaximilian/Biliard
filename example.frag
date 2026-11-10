@@ -30,13 +30,15 @@ void main(void)
             out_Color = vec4(0.95f, 0.95f, 0.93f, 1.0f);
             break;
         case 5:
-            // Linie de tintire sau elemente speciale
+            // Linie de tintire
             out_Color = vec4(1.0f, 1.0f, 1.0f, 0.6f);
             break;
         case 6:
+            // Putere
             out_Color = vec4(0.2f, 0.2f, 0.22f, 1.0f);
             break;
         case 7:
+            // Bila rosie
             out_Color = vec4(0.88f, 0.15f, 0.15f, 1.0f);
             break;
         default:
