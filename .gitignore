@@ -48,6 +48,9 @@ Biliard/Release/
 # Fisiere arhiva
 *.zip
 
+# Visual Studio temporary folders
+enc_temp_folder/
+
 # ========================================================
 # Pastram bibliotecile externe necesare proiectului (lib/)
 # ========================================================

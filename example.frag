@@ -31,7 +31,7 @@ void main(void)
             break;
         case 5:
             // Linie de tintire
-            out_Color = vec4(1.0f, 1.0f, 1.0f, 0.6f);
+            out_Color = vec4(1.0f, 1.0f, 1.0f, 0.8f);
             break;
         case 6:
             // Putere
@@ -40,6 +40,10 @@ void main(void)
         case 7:
             // Bila rosie
             out_Color = vec4(0.88f, 0.15f, 0.15f, 1.0f);
+            break;
+        case 8:
+            // Bila fantoma (Ghost ball)
+            out_Color = vec4(1.0f, 1.0f, 1.0f, 0.35f);
             break;
         default:
             out_Color = ex_Color;
